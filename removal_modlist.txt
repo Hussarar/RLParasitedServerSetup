@@ -1,0 +1,23 @@
+﻿#List of Mods that are deleted on server creation
+#Client Mods
+controllable
+Optifine
+BetterConfig
+!mod-director-launchwrapper
+
+#BHMenu
+#oauth
+#DynamicSurroundingsHuds
+#LegendaryTooltips
+#BlockOverlayFix
+#particleculling
+#EntityCulling
+#JEI*Want*That
+#ReplayMod
+#ToggleSneak
+#SpartanHUDBaubles
+#LoadingScreens
+#MainMenuScale
+
+#Extra removal Mods
+#MindPalaces
