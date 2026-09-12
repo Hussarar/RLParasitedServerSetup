@@ -1,15 +1,20 @@
 #!/bin/bash
-
+rm 'server_setup.log'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(dirname "$SCRIPT_DIR")"
 LOGFILE="$SCRIPT_DIR/server_setup.log"
 RM_MODS_FILE="$BASE_DIR/removal_modlist.txt"
+parasitedver=$(curl -s https://api.github.com/repos/Nischhelm/RLCraftParasited/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+
+# Change and uncomment this to override the Version if you want a specific version
+# parasitedver="Aug14-2026"
 
 log() {
     echo -e "$1" | tee -a "$LOGFILE"
 }
+log "- - - - - - - -"
 
-# Check if Python 3 is available
+# - - - - Python and Java checks - - - -
 if ! command -v python3 &> /dev/null; then
     echo -e "Error: Python 3 is not installed or not in PATH. Exiting..."
     exit 1
@@ -21,22 +26,32 @@ if ! dpkg -s openjdk-8-jre-headless &> /dev/null; then
 else
     log "Java 8 is already installed."
 fi
+# - - - - - - - -
 
+# - - - - Setup Questions - - - -
 echo "What is the Name of the Server?"
+echo "Input an already existing Foldername to update the Serverfiles"
 read -p "> " servername
 
 echo "What type of Server do you want to setup?"
+echo "Latest Parasited Version:" $parasitedver
 echo "[1] RLCraftParasited"
 echo "[2] RLCraft Dregora Parasited"
 echo "[3] ShyCraft Parasited"
 read -p "> " servertype
 
-echo "What configration would you like to add?"
-echo "Input the numbers in sequence if you want to combine Unparasited and HCC"
-echo "[1] Add UnParasited Config"
-echo "[2] Add Hardcore Config (HCC)"
-echo "[3] Add Omega Hardcore Config (OmegaHCC)"
-read -p "> " config
+if [[ "$servertype" != 3 ]]; then
+    echo "What configration would you like to add?"
+    echo "Input the numbers in sequence if you want to combine Unparasited and HCC"
+    echo "Disclaimer these don't exist for Shycraft"
+    echo "[1] Add UnParasited Config"
+    echo "[2] Add Hardcore Config (HCC)"
+    echo "[3] Add Omega Hardcore Config (OmegaHCC)"
+    read -p "> " config
+else
+    # Set config to empty so it doesn't break later checks in the script
+    config=""
+fi
 
 echo "Do you want to install "
 echo "Input the numbers in sequence if you want to add both Mods"
@@ -44,71 +59,98 @@ echo "[1] Morpheus? (50% Sleep Mod)"
 echo "[2] Chunk Pregeneration?"
 read -p "> " addon
 
-if [[ -e "./$servername" ]]; then
-    echo -e "Error: Server folder '$servername' already exists! Exiting..."
-    exit 1
+# echo "Do you want Dragonsteel?"
+# echo "[1] No"
+# echo "[2] Yes"
+# read -p "> " dragonsteel
+
+# if [[ "$dragonsteel" == 1 ]]; then
+#     echo pwd
+# fi
+# - - - - - - - -
+
+# - - - - Update the Serverfiles if same name - - - -
+if [[ -d "./$servername" ]]; then
+    log "Server folder '$servername' already exists. Preparing for UPDATE..."
+    cd ./$servername
+    log "Removing old modpack directories for a clean update..."
+    rm -rf config mods paintings scripts structures srpextra
+else
+    log "Creating new server folder: $servername"
+    mkdir -pv ./$servername
+    cd ./$servername
 fi
+# - - - - - - - -
 
-mkdir -pv ./$servername
-
-# Gamefile Downloads
-cd ./$servername
-
+# - - - - Gamefile download - - - -
 if [[ "$servertype" == 1 ]]; then
-    curl -sLO https://github.com/Nischhelm/RLCraftParasited/releases/download/Aug14-2026/RLCraft.Parasited.zip
-    unzip RLCraft.Parasited.zip -d ./PARA
-    rm RLCraft.Parasited.zip
+    curl -sLO https://github.com/Nischhelm/RLCraftParasited/releases/download/$parasitedver/RLCraft.Parasited.zip
+    unzip -q RLCraft.Parasited.zip -d ./PARA
+    rm 'RLCraft.Parasited.zip'
 fi
+
 if [[ "$servertype" == 2 ]]; then
-    curl -sLO https://github.com/Nischhelm/RLCraftParasited/releases/download/Aug14-2026/Dregora.Parasited.zip
-    unzip Dregora.Parasited.zip -d ./PARA
-    rm Dregora.Parasited.zip
+    curl -sLO https://github.com/Nischhelm/RLCraftParasited/releases/download/$parasitedver/Dregora.Parasited.zip
+    unzip -q Dregora.Parasited.zip -d ./PARA
+    rm 'Dregora.Parasited.zip'
 fi
+
 if [[ "$servertype" == 3 ]]; then
-    curl -sLO https://github.com/Nischhelm/RLCraftParasited/releases/download/Aug14-2026/ShyCraft.Parasited.zip
-    unzip ShyCraft.Parasited.zip -d ./PARA
-    rm ShyCraft.Parasited.zip
+    curl -sLO https://github.com/Nischhelm/RLCraftParasited/releases/download/$parasitedver/ShyCraft.Parasited.zip
+    unzip -q ShyCraft.Parasited.zip -d ./PARA
+    rm 'ShyCraft.Parasited.zip'
 fi
 
 # Download Forge Server Installer
 curl -sLO https://maven.minecraftforge.net/net/minecraftforge/forge/1.12.2-14.23.5.2860/forge-1.12.2-14.23.5.2860-installer.jar && log "Installed Forge Server Installer"
 
-# Run the Forge Server Installer
+# Run the Forge Server Installer to generate server files
 java -jar forge-1.12.2-14.23.5.2860-installer.jar --installServer &> /dev/null && log "Forge Installer Installed"
 
 echo "eula=true" > eula.txt
 
+# Stop the Server
 echo "stop" | java -Xms6G -Xmx8G -jar forge-1.12.2-14.23.5.2860.jar nogui &> /dev/null && log "Server Files generated"
 
 cp -rfv ./PARA/manifest.json ./
 cp -rfv ./PARA/overrides/* ./ &> /dev/null && rm -rf ./PARA &> /dev/null && log "Para Copied"
+# - - - - - - - -
 
-# UnParasited Download
+# - - - - Config Unzips - - - -
+# UnParasited unzip
 if [[ "$config" == *1* ]]; then
-    log "Installed UnParasited Files"
-    unzip -o 'Parasited Unparasited.zip'
+    log "Installed Unparasited Files"
+    unzip -qo 'Parasited Unparasited.zip'
+    unzip -qo 'Dregora Parasited Unparasited.zip'
     rm 'Parasited Unparasited.zip'
+    rm 'Dregora Parasited Unparasited.zip'
 fi
 
-# HCC Download
+# HCC unzip
 if [[ "$config" == *2* ]]; then
     log "Installed HCC Files"
-    unzip -o 'Parasited HCC.zip'
+    unzip -qo 'Parasited HCC.zip'
+    unzip -qo 'Dregora Parasited HCC.zip'
     rm 'Parasited HCC.zip'
+    rm 'Dregora Parasited HCC.zip'
 fi
 
-# OmegaHCC Download
+# OmegaHCC unzip
 if [[ "$config" == *3* ]]; then
     log "Installed OmegaHCC Files"
-    unzip -o 'Parasited OmegaHCC_Server.zip'
+    unzip -qo 'Parasited OmegaHCC_Server.zip'
+    unzip -qo 'Dregora Parasited OmegaHCC_Server.zip'
     rm 'Parasited OmegaHCC_Server.zip'
+    rm 'Dregora Parasited OmegaHCC_Server.zip'
 fi
+# - - - - - - - -
 
+# - - - - Download of the needed Mods - - - -
 log "Downloading Mods from manifest.json..."
-
 python3 "$BASE_DIR/manifestreader.py"
+# - - - - - - - -
 
-#Mod removals
+# - - - - Mod Removal Script - - - -
 if [[ -f "$RM_MODS_FILE" ]]; then
     log "Removing Client Mods"
     while IFS= read -r mod || [[ -n "$mod" ]]; do
@@ -118,12 +160,14 @@ if [[ -f "$RM_MODS_FILE" ]]; then
 else
     log "$RM_MODS_FILE not found."
 fi
+# - - - - - - - -
 
 # Remove the Forge Server Installer
 rm -v forge-1.12.2-14.23.5.2860-installer.jar
 
 echo "Creating boot_server.sh in RLServSetupper..."
 
+# - - - - Server Boot File Creation - - - -
 cat << 'EOF' > ../boot_server.sh
 #!/bin/bash
 
@@ -146,9 +190,11 @@ sed -i "s/__SERVERNAME__/$servername/g" ../boot_server.sh
 # Make boot_server.sh executable
 chmod +x ../boot_server.sh
 echo -e "Created boot_server.sh in RLServSetupper!"
+# - - - - - - - -
 
 cd ./mods
 
+# - - - - Addons install - - - -
 if [[ "$addon" == *1* ]]; then
     log "Downloading Morpheus"
     curl -fL -A "Mozilla/5.0" -o "Morpheus-1.12.2-3.5.106.jar" "https://edge.forgecdn.net/files/2664/449/Morpheus-1.12.2-3.5.106.jar" && log "Installed Morpheus"
@@ -158,11 +204,11 @@ if [[ "$addon" == *2* ]]; then
     log "Downloading Chunk Pregenerator"
     curl -fL -A "Mozilla/5.0" -o "Chunk-Pregenerator-V1.12-2.5.1.jar" "https://edge.forgecdn.net/files/3490/718/Chunk%20Pregenerator-V1.12-2.5.1.jar" && log "Installed Chunk Pregenerator"
 fi
+# - - - - - - - -
 
 #https://www.curseforge.com/minecraft/mc-mods/chunkpregenerator/files/3490718
 
 log "Finished installation! Start the Server by executing the boot_server.sh"
+log "- - - - - - - -"
 echo "Don't forget to Portforward (25565 TCP/UDP) for other people to join!"
 echo "And also 24454 UDP for the Simple Voice Chat Mod"
-
-#TODO: Add Morpheus, Add PreGen
