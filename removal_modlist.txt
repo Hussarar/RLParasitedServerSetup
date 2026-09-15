@@ -4,6 +4,7 @@ controllable
 Optifine
 BetterConfig
 !mod-director-launchwrapper
+fancymenu
 
 #BHMenu
 #oauth
@@ -20,4 +21,5 @@ BetterConfig
 #MainMenuScale
 
 #Extra removal Mods
-#MindPalaces
+MindPalaces
+AntiqueAtlasAutoMarker

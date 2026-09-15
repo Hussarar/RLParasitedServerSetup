@@ -168,11 +168,13 @@ rm -v forge-1.12.2-14.23.5.2860-installer.jar
 echo "Creating boot_server.sh in RLServSetupper..."
 
 # - - - - Server Boot File Creation - - - -
-cat << 'EOF' > ../boot_server.sh
+BOOT_SCRIPT="../boot_${servername}.sh"
+cat << 'EOF' > "$BOOT_SCRIPT"
 #!/bin/bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER_DIR="$SCRIPT_DIR/__SERVERNAME__"
+SETUP_DIR="$(dirname "$SCRIPT_DIR")"
 
 MIN_RAM="6G"
 MAX_RAM="8G"
@@ -181,15 +183,21 @@ FORGE_JAR="forge-1.12.2-14.23.5.2860.jar"
 # Change directory into the server folder
 cd "$SERVER_DIR" || exit 1
 
+# Replace server.properties with custom one if it exists
+if [[ -f "$SETUP_DIR/server_properties" ]]; then
+    echo "Using custom server_properties..."
+    cp -f "$SETUP_DIR/server_properties" ./server.properties
+fi
+
 java -Xms${MIN_RAM} -Xmx${MAX_RAM} -jar ${FORGE_JAR} nogui
 EOF
 
 # Inject the actual server folder name
-sed -i "s/__SERVERNAME__/$servername/g" ../boot_server.sh
+sed -i "s/__SERVERNAME__/$servername/g" "$BOOT_SCRIPT"
 
 # Make boot_server.sh executable
-chmod +x ../boot_server.sh
-echo -e "Created boot_server.sh in RLServSetupper!"
+chmod +x "$BOOT_SCRIPT"
+echo -e "Created $BOOT_SCRIPT in RLServSetupper!"
 # - - - - - - - -
 
 cd ./mods
